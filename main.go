@@ -516,7 +516,7 @@ func poetryHandler(w http.ResponseWriter, r *http.Request) {
 	base.Execute(w, pageData)
 }
 
-// Debug handler to check file access in Vercel environment
+// Debug handler to check HTTP access to static files
 func debugHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	
@@ -524,19 +524,32 @@ func debugHandler(w http.ResponseWriter, r *http.Request) {
 	wd, _ := os.Getwd()
 	fmt.Fprintf(w, "Working Directory: %s\n", wd)
 	
-	// Check if files exist
-	files := []string{
-		"public/poems/poem-1.json",
-		"public/archbgs-01.webp",
-		"archbgs-01.webp",
-		"poems/poem-1.json",
+	// Get the base URL from environment or use localhost for development
+	baseURL := os.Getenv("VERCEL_URL")
+	if baseURL == "" {
+		baseURL = "http://localhost:8080"
+	} else {
+		baseURL = "https://" + baseURL
 	}
 	
-	for _, file := range files {
-		if _, err := os.Stat(file); err == nil {
-			fmt.Fprintf(w, "✓ %s exists\n", file)
+	fmt.Fprintf(w, "Base URL: %s\n", baseURL)
+	
+	// Test HTTP access to static files
+	testURLs := []string{
+		"/archbgs-01.webp",
+		"/test-poem.json",
+		"/poems/poem-1.json",
+		"/poems/poem-2.json",
+	}
+	
+	for _, url := range testURLs {
+		fullURL := baseURL + url
+		resp, err := http.Get(fullURL)
+		if err != nil {
+			fmt.Fprintf(w, "✗ %s - HTTP Error: %v\n", url, err)
 		} else {
-			fmt.Fprintf(w, "✗ %s not found: %v\n", file, err)
+			resp.Body.Close()
+			fmt.Fprintf(w, "✓ %s - Status: %d\n", url, resp.StatusCode)
 		}
 	}
 	
