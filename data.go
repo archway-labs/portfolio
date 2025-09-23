@@ -1,4 +1,4 @@
-package main
+package handler
 
 // Poems data - compiled into binary for maximum speed
 var products = []Product{
