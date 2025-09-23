@@ -15,11 +15,5 @@
       "src": "/(.*)",
       "dest": "/main.go"
     }
-  ],
-  "functions": {
-    "main.go": {
-      "maxDuration": 10
-    }
-  },
-  "public": true
+  ]
 }
