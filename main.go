@@ -32,21 +32,36 @@ type Product struct {
 // ============================================================================
 // MAIN SERVER SETUP
 // ============================================================================
-func main() {
+
+// Global mux for routing
+var mux *http.ServeMux
+
+// Initialize the server routes
+func init() {
 	rand.Seed(time.Now().UnixNano())
 	
+	mux = http.NewServeMux()
+	
 	// Route handlers
-	http.HandleFunc("/", homeHandler)           // Homepage with bio
-	http.HandleFunc("/search", searchHandler)   // Search poems functionality
-	http.HandleFunc("/product/", productHandler) // Individual product pages (legacy)
-	http.HandleFunc("/poem/", poemHandler)      // Individual poem pages
-	http.HandleFunc("/poetry", poetryHandler)   // All poems listing page
+	mux.HandleFunc("/", homeHandler)           // Homepage with bio
+	mux.HandleFunc("/search", searchHandler)   // Search poems functionality
+	mux.HandleFunc("/product/", productHandler) // Individual product pages (legacy)
+	mux.HandleFunc("/poem/", poemHandler)      // Individual poem pages
+	mux.HandleFunc("/poetry", poetryHandler)   // All poems listing page
 	
 	// Static file server for images, CSS, etc.
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static/"))))
-	
+	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static/"))))
+}
+
+// Handler function for Vercel
+func Handler(w http.ResponseWriter, r *http.Request) {
+	mux.ServeHTTP(w, r)
+}
+
+// Main function for local development
+func main() {
 	log.Println("Server starting on :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(http.ListenAndServe(":8080", mux))
 }
 
 
