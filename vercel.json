@@ -1,7 +1,19 @@
 {
   "version": 2,
-  "public": true,
+  "functions": {
+    "api/index.go": {
+      "runtime": "@vercel/go@2.0.0"
+    }
+  },
   "routes": [
+    {
+      "src": "/static/(.*)",
+      "dest": "/static/$1"
+    },
+    {
+      "src": "/poems/(.*)",
+      "dest": "/poems/$1"
+    },
     {
       "src": "/(.*)",
       "dest": "/api"

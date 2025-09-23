@@ -42,6 +42,7 @@ func init() {
 	
 	// Static file server for images, CSS, etc.
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("public/"))))
+	mux.Handle("/poems/", http.StripPrefix("/poems/", http.FileServer(http.Dir("public/poems/"))))
 }
 
 // Handler function for Vercel
