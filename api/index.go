@@ -12,7 +12,6 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 )
@@ -235,17 +234,26 @@ func searchPoems(query string) []struct {
 		Content  string `json:"content"`
 	}
 	
-	// Read all poem JSON files
-	files, err := filepath.Glob("public/poems/*.json")
-	if err != nil {
-		log.Printf("Error reading poem files: %v", err)
-		return results
+	// Get the base URL from environment or use localhost for development
+	baseURL := os.Getenv("VERCEL_URL")
+	if baseURL == "" {
+		baseURL = "http://localhost:8080"
+	} else {
+		baseURL = "https://" + baseURL
 	}
 	
 	queryLower := strings.ToLower(query)
 	
-	for _, file := range files {
-		data, err := ioutil.ReadFile(file)
+	// Try to fetch each poem file via HTTP
+	for i := 1; i <= 50; i++ { // Assuming we have up to 50 poems
+		url := fmt.Sprintf("%s/poems/poem-%d.json", baseURL, i)
+		resp, err := http.Get(url)
+		if err != nil || resp.StatusCode != 200 {
+			continue
+		}
+		
+		data, err := ioutil.ReadAll(resp.Body)
+		resp.Body.Close()
 		if err != nil {
 			continue
 		}
@@ -351,9 +359,24 @@ func poemHandler(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/poem/")
 	poemID := strings.TrimSuffix(path, ".json")
 	
-	// Read the JSON file
-	filePath := fmt.Sprintf("public/poems/poem-%s.json", poemID)
-	data, err := ioutil.ReadFile(filePath)
+	// Get the base URL from environment or use localhost for development
+	baseURL := os.Getenv("VERCEL_URL")
+	if baseURL == "" {
+		baseURL = "http://localhost:8080"
+	} else {
+		baseURL = "https://" + baseURL
+	}
+	
+	// Fetch the poem JSON file via HTTP
+	url := fmt.Sprintf("%s/poems/poem-%s.json", baseURL, poemID)
+	resp, err := http.Get(url)
+	if err != nil || resp.StatusCode != 200 {
+		http.NotFound(w, r)
+		return
+	}
+	defer resp.Body.Close()
+	
+	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		http.NotFound(w, r)
 		return
@@ -407,12 +430,12 @@ func poemHandler(w http.ResponseWriter, r *http.Request) {
 
 // Poetry handler - displays listing of all poems
 func poetryHandler(w http.ResponseWriter, r *http.Request) {
-	// Read all poem JSON files
-	files, err := filepath.Glob("public/poems/*.json")
-	if err != nil {
-		log.Printf("Error reading poem files: %v", err)
-		http.Error(w, "Error reading poems", http.StatusInternalServerError)
-		return
+	// Get the base URL from environment or use localhost for development
+	baseURL := os.Getenv("VERCEL_URL")
+	if baseURL == "" {
+		baseURL = "http://localhost:8080"
+	} else {
+		baseURL = "https://" + baseURL
 	}
 	
 	var poems []struct {
@@ -424,8 +447,16 @@ func poetryHandler(w http.ResponseWriter, r *http.Request) {
 		Content  string `json:"content"`
 	}
 	
-	for _, file := range files {
-		data, err := ioutil.ReadFile(file)
+	// Try to fetch each poem file via HTTP
+	for i := 1; i <= 50; i++ { // Assuming we have up to 50 poems
+		url := fmt.Sprintf("%s/poems/poem-%d.json", baseURL, i)
+		resp, err := http.Get(url)
+		if err != nil || resp.StatusCode != 200 {
+			continue
+		}
+		
+		data, err := ioutil.ReadAll(resp.Body)
+		resp.Body.Close()
 		if err != nil {
 			continue
 		}
