@@ -1,4 +1,4 @@
-package handler
+package main
 
 // ============================================================================
 // IMPORTS
@@ -12,6 +12,8 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -19,103 +21,39 @@ import (
 // ============================================================================
 // DATA STRUCTURES
 // ============================================================================
-// No data structures needed - all data is served from JSON files
+type Product struct {
+	ID          int     `json:"id"`
+	Name        string  `json:"name"`
+	PartNumber  string  `json:"part_number"`
+	Price       float64 `json:"price"`
+	Category    string  `json:"category"`
+	Description string  `json:"description"`
+}
 
 // ============================================================================
 // MAIN SERVER SETUP
 // ============================================================================
-
-// Global mux for routing
-var mux *http.ServeMux
-
-// Initialize the server routes
-func init() {
+func main() {
 	rand.Seed(time.Now().UnixNano())
 	
-	mux = http.NewServeMux()
+	// Route handlers
+	http.HandleFunc("/", homeHandler)           // Homepage with bio
+	http.HandleFunc("/search", searchHandler)   // Search poems functionality
+	http.HandleFunc("/product/", productHandler) // Individual product pages (legacy)
+	http.HandleFunc("/poem/", poemHandler)      // Individual poem pages
+	http.HandleFunc("/poetry", poetryHandler)   // All poems listing page
 	
-	// Handle all requests with custom handler
-	mux.HandleFunc("/", rootHandler)
-}
-
-// Root handler that routes requests to appropriate handlers
-func rootHandler(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Path
+	// Static file server for images, CSS, etc.
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static/"))))
 	
-	// Handle specific routes
-	switch {
-	case path == "/search":
-		searchHandler(w, r)
-	case strings.HasPrefix(path, "/poem/"):
-		poemHandler(w, r)
-	case path == "/poetry":
-		poetryHandler(w, r)
-	case path == "/debug":
-		debugHandler(w, r)
-	case path == "/" || path == "":
-		homeHandler(w, r)
-	default:
-		// Try to serve static file
-		staticHandler(w, r)
+	// Get port from environment variable (Vercel sets this)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
 	}
-}
-
-// Static file handler - serves embedded static content
-func staticHandler(w http.ResponseWriter, r *http.Request) {
-	path := strings.TrimPrefix(r.URL.Path, "/")
 	
-	// Handle specific static files
-	switch path {
-	case "archbgs-01.webp":
-		// Return a simple response for now - we'll embed the actual image later
-		w.Header().Set("Content-Type", "image/webp")
-		w.Write([]byte("webp placeholder"))
-	case "test-poem.json":
-		// Return the test poem JSON directly
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{
-  "id": 1,
-  "title": "the necessities",
-  "date": "2025-09-21",
-  "category": "Poetry",
-  "location": "Brooklyn, NY",
-  "content": "1000 years ago we had everything we need.\nclouds, and the bible,\nand wheels and carts,\nhorses, the concept of money,\nand we even had dying at 25.\n\ni'm 27 and i haven't died yet, never done drugs in my life.\nlast sunday i ended up on a date, somehow,\ndrinking non-alcoholic canned negronis\nwith a 37 year old recovered addict, active dealer,\nand she hadn't died yet either.\n\nwe shared a single cigarette on our way out the door,\nsat on the steps of a church at 1:30am,\neating 24hr diner donuts.\nshe talked about herself a lot and i listened a little,\nstudying hand and pretty, tired face tattoos.\n\ni called for an uber alone and she blew me a kiss,\nand four wheels arrived and took me home,\nand both of us were bone dry sober, and alive,\nand parents get lenient with their youngest child,\nthank god, God's saved us from dying at 25.\n"
-}`))
-	default:
-		if strings.HasPrefix(path, "poems/poem-") && strings.HasSuffix(path, ".json") {
-			// Extract poem ID and return embedded poem
-			poemID := strings.TrimPrefix(strings.TrimSuffix(path, ".json"), "poems/poem-")
-			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(getEmbeddedPoem(poemID)))
-		} else {
-			http.NotFound(w, r)
-		}
-	}
-}
-
-// Get embedded poem by ID
-func getEmbeddedPoem(poemID string) string {
-	// For now, return a simple poem for testing
-	// Later we can embed all poems directly in the code
-	return fmt.Sprintf(`{
-  "id": %s,
-  "title": "test poem %s",
-  "date": "2025-09-21",
-  "category": "Poetry",
-  "location": "Brooklyn, NY",
-  "content": "This is a test poem with ID %s.\nIt contains multiple lines\nfor testing purposes."
-}`, poemID, poemID, poemID)
-}
-
-// Handler function for Vercel
-func Handler(w http.ResponseWriter, r *http.Request) {
-	mux.ServeHTTP(w, r)
-}
-
-// Main function for local development
-func main() {
-	log.Println("Server starting on :8080")
-	log.Fatal(http.ListenAndServe(":8080", mux))
+	log.Printf("Server starting on :%s", port)
+	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
 
@@ -166,7 +104,7 @@ const baseTemplate = `
         body {
             font-family: Helvetica, Arial, sans-serif;
             font-size: 11px;
-            background-image: url('/archbgs-01.webp');
+            background-image: url('/static/archbgs-01.webp');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -297,26 +235,17 @@ func searchPoems(query string) []struct {
 		Content  string `json:"content"`
 	}
 	
-	// Get the base URL from environment or use localhost for development
-	baseURL := os.Getenv("VERCEL_URL")
-	if baseURL == "" {
-		baseURL = "http://localhost:8080"
-	} else {
-		baseURL = "https://" + baseURL
+	// Read all poem JSON files
+	files, err := filepath.Glob("static/poems/*.json")
+	if err != nil {
+		log.Printf("Error reading poem files: %v", err)
+		return results
 	}
 	
 	queryLower := strings.ToLower(query)
 	
-	// Try to fetch each poem file via HTTP
-	for i := 1; i <= 50; i++ { // Assuming we have up to 50 poems
-		url := fmt.Sprintf("%s/poems/poem-%d.json", baseURL, i)
-		resp, err := http.Get(url)
-		if err != nil || resp.StatusCode != 200 {
-			continue
-		}
-		
-		data, err := ioutil.ReadAll(resp.Body)
-		resp.Body.Close()
+	for _, file := range files {
+		data, err := ioutil.ReadFile(file)
 		if err != nil {
 			continue
 		}
@@ -416,30 +345,80 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 	base.Execute(w, data)
 }
 
+// Product handler - legacy handler for individual product pages (not used in current design)
+func productHandler(w http.ResponseWriter, r *http.Request) {
+	path := strings.TrimPrefix(r.URL.Path, "/product/")
+	productID, err := strconv.Atoi(path)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	var product *Product
+	for _, p := range products {
+		if p.ID == productID {
+			product = &p
+			break
+		}
+	}
+
+	if product == nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	sidebar, _ := template.New("sidebar").Parse(sidebarTemplate)
+	base, _ := template.New("base").Parse(baseTemplate)
+	
+	var sidebarHTML strings.Builder
+	sidebar.Execute(&sidebarHTML, struct{ Query string }{""})
+	
+	content := fmt.Sprintf(`
+        <p><a href="/">← Back to Home</a> | <a href="/search?q=%s">%s</a></p>
+        
+        <h2>%s</h2>
+        
+        <p><strong>Date Written:</strong> %s</p>
+        <p><strong>Location:</strong> %s</p>
+        
+        <div class="poem-content">
+            %s
+        </div>
+        
+        <h3>Details</h3>
+        <ul>
+            <li>Title: %s</li>
+            <li>Date Written: %s</li>
+            <li>Location: %s</li>
+            <li>Collection: Alaska Hoffman</li>
+        </ul>
+        
+        <button>Add to Favorites</button>
+        <button>Share Poem</button>`,
+		product.Category, product.Category, product.Name, product.PartNumber, 
+		product.Category, product.Description, product.Name, product.PartNumber, product.Category)
+	
+	data := struct {
+		Title   string
+		Sidebar template.HTML
+		Content template.HTML
+	}{
+		Title:   fmt.Sprintf("%s - Alaska Hoffman", product.Name),
+		Sidebar: template.HTML(sidebarHTML.String()),
+		Content: template.HTML(content),
+	}
+	
+	base.Execute(w, data)
+}
 
 // Poem handler - displays individual poem pages from JSON files
 func poemHandler(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/poem/")
 	poemID := strings.TrimSuffix(path, ".json")
 	
-	// Get the base URL from environment or use localhost for development
-	baseURL := os.Getenv("VERCEL_URL")
-	if baseURL == "" {
-		baseURL = "http://localhost:8080"
-	} else {
-		baseURL = "https://" + baseURL
-	}
-	
-	// Fetch the poem JSON file via HTTP
-	url := fmt.Sprintf("%s/poems/poem-%s.json", baseURL, poemID)
-	resp, err := http.Get(url)
-	if err != nil || resp.StatusCode != 200 {
-		http.NotFound(w, r)
-		return
-	}
-	defer resp.Body.Close()
-	
-	data, err := ioutil.ReadAll(resp.Body)
+	// Read the JSON file
+	filePath := fmt.Sprintf("static/poems/poem-%s.json", poemID)
+	data, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		http.NotFound(w, r)
 		return
@@ -493,12 +472,12 @@ func poemHandler(w http.ResponseWriter, r *http.Request) {
 
 // Poetry handler - displays listing of all poems
 func poetryHandler(w http.ResponseWriter, r *http.Request) {
-	// Get the base URL from environment or use localhost for development
-	baseURL := os.Getenv("VERCEL_URL")
-	if baseURL == "" {
-		baseURL = "http://localhost:8080"
-	} else {
-		baseURL = "https://" + baseURL
+	// Read all poem JSON files
+	files, err := filepath.Glob("static/poems/*.json")
+	if err != nil {
+		log.Printf("Error reading poem files: %v", err)
+		http.Error(w, "Error reading poems", http.StatusInternalServerError)
+		return
 	}
 	
 	var poems []struct {
@@ -510,16 +489,8 @@ func poetryHandler(w http.ResponseWriter, r *http.Request) {
 		Content  string `json:"content"`
 	}
 	
-	// Try to fetch each poem file via HTTP
-	for i := 1; i <= 50; i++ { // Assuming we have up to 50 poems
-		url := fmt.Sprintf("%s/poems/poem-%d.json", baseURL, i)
-		resp, err := http.Get(url)
-		if err != nil || resp.StatusCode != 200 {
-			continue
-		}
-		
-		data, err := ioutil.ReadAll(resp.Body)
-		resp.Body.Close()
+	for _, file := range files {
+		data, err := ioutil.ReadFile(file)
 		if err != nil {
 			continue
 		}
@@ -578,50 +549,3 @@ func poetryHandler(w http.ResponseWriter, r *http.Request) {
 	
 	base.Execute(w, pageData)
 }
-
-// Debug handler to check HTTP access to static files
-func debugHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain")
-	
-	// Check current working directory
-	wd, _ := os.Getwd()
-	fmt.Fprintf(w, "Working Directory: %s\n", wd)
-	
-	// Get the base URL from environment or use localhost for development
-	baseURL := os.Getenv("VERCEL_URL")
-	if baseURL == "" {
-		baseURL = "http://localhost:8080"
-	} else {
-		baseURL = "https://" + baseURL
-	}
-	
-	fmt.Fprintf(w, "Base URL: %s\n", baseURL)
-	
-	// Test HTTP access to static files
-	testURLs := []string{
-		"/archbgs-01.webp",
-		"/test-poem.json",
-		"/poems/poem-1.json",
-		"/poems/poem-2.json",
-	}
-	
-	for _, url := range testURLs {
-		fullURL := baseURL + url
-		resp, err := http.Get(fullURL)
-		if err != nil {
-			fmt.Fprintf(w, "✗ %s - HTTP Error: %v\n", url, err)
-		} else {
-			resp.Body.Close()
-			fmt.Fprintf(w, "✓ %s - Status: %d\n", url, resp.StatusCode)
-		}
-	}
-	
-	// List directory contents
-	fmt.Fprintf(w, "\nDirectory listing:\n")
-	if dirs, err := os.ReadDir("."); err == nil {
-		for _, dir := range dirs {
-			fmt.Fprintf(w, "- %s\n", dir.Name())
-		}
-	}
-}
-

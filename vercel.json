@@ -2,8 +2,24 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/index.go",
+      "src": "main.go",
       "use": "@vercel/go"
     }
-  ]
+  ],
+  "routes": [
+    {
+      "src": "/static/(.*)",
+      "dest": "/static/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/main.go"
+    }
+  ],
+  "functions": {
+    "main.go": {
+      "maxDuration": 10
+    }
+  },
+  "public": true
 }
