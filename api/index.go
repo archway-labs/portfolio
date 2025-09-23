@@ -11,6 +11,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -483,3 +484,37 @@ func poetryHandler(w http.ResponseWriter, r *http.Request) {
 	
 	base.Execute(w, pageData)
 }
+
+// Debug handler to check file access in Vercel environment
+func debugHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain")
+	
+	// Check current working directory
+	wd, _ := os.Getwd()
+	fmt.Fprintf(w, "Working Directory: %s\n", wd)
+	
+	// Check if files exist
+	files := []string{
+		"public/poems/poem-1.json",
+		"public/archbgs-01.webp",
+		"archbgs-01.webp",
+		"poems/poem-1.json",
+	}
+	
+	for _, file := range files {
+		if _, err := os.Stat(file); err == nil {
+			fmt.Fprintf(w, "✓ %s exists\n", file)
+		} else {
+			fmt.Fprintf(w, "✗ %s not found: %v\n", file, err)
+		}
+	}
+	
+	// List directory contents
+	fmt.Fprintf(w, "\nDirectory listing:\n")
+	if dirs, err := os.ReadDir("."); err == nil {
+		for _, dir := range dirs {
+			fmt.Fprintf(w, "- %s\n", dir.Name())
+		}
+	}
+}
+
