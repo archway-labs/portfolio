@@ -12,7 +12,6 @@ import (
 	"math/rand"
 	"net/http"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -20,14 +19,7 @@ import (
 // ============================================================================
 // DATA STRUCTURES
 // ============================================================================
-type Product struct {
-	ID          int     `json:"id"`
-	Name        string  `json:"name"`
-	PartNumber  string  `json:"part_number"`
-	Price       float64 `json:"price"`
-	Category    string  `json:"category"`
-	Description string  `json:"description"`
-}
+// No data structures needed - all data is served from JSON files
 
 // ============================================================================
 // MAIN SERVER SETUP
@@ -45,7 +37,6 @@ func init() {
 	// Route handlers
 	mux.HandleFunc("/", homeHandler)           // Homepage with bio
 	mux.HandleFunc("/search", searchHandler)   // Search poems functionality
-	mux.HandleFunc("/product/", productHandler) // Individual product pages (legacy)
 	mux.HandleFunc("/poem/", poemHandler)      // Individual poem pages
 	mux.HandleFunc("/poetry", poetryHandler)   // All poems listing page
 	
@@ -353,71 +344,6 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 	base.Execute(w, data)
 }
 
-// Product handler - legacy handler for individual product pages (not used in current design)
-func productHandler(w http.ResponseWriter, r *http.Request) {
-	path := strings.TrimPrefix(r.URL.Path, "/product/")
-	productID, err := strconv.Atoi(path)
-	if err != nil {
-		http.NotFound(w, r)
-		return
-	}
-
-	var product *Product
-	for _, p := range products {
-		if p.ID == productID {
-			product = &p
-			break
-		}
-	}
-
-	if product == nil {
-		http.NotFound(w, r)
-		return
-	}
-
-	sidebar, _ := template.New("sidebar").Parse(sidebarTemplate)
-	base, _ := template.New("base").Parse(baseTemplate)
-	
-	var sidebarHTML strings.Builder
-	sidebar.Execute(&sidebarHTML, struct{ Query string }{""})
-	
-	content := fmt.Sprintf(`
-        <p><a href="/">← Back to Home</a> | <a href="/search?q=%s">%s</a></p>
-        
-        <h2>%s</h2>
-        
-        <p><strong>Date Written:</strong> %s</p>
-        <p><strong>Location:</strong> %s</p>
-        
-        <div class="poem-content">
-            %s
-        </div>
-        
-        <h3>Details</h3>
-        <ul>
-            <li>Title: %s</li>
-            <li>Date Written: %s</li>
-            <li>Location: %s</li>
-            <li>Collection: Alaska Hoffman</li>
-        </ul>
-        
-        <button>Add to Favorites</button>
-        <button>Share Poem</button>`,
-		product.Category, product.Category, product.Name, product.PartNumber, 
-		product.Category, product.Description, product.Name, product.PartNumber, product.Category)
-	
-	data := struct {
-		Title   string
-		Sidebar template.HTML
-		Content template.HTML
-	}{
-		Title:   fmt.Sprintf("%s - Alaska Hoffman", product.Name),
-		Sidebar: template.HTML(sidebarHTML.String()),
-		Content: template.HTML(content),
-	}
-	
-	base.Execute(w, data)
-}
 
 // Poem handler - displays individual poem pages from JSON files
 func poemHandler(w http.ResponseWriter, r *http.Request) {
