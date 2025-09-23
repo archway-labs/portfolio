@@ -34,14 +34,77 @@ func init() {
 	
 	mux = http.NewServeMux()
 	
-	// Route handlers
-	mux.HandleFunc("/", homeHandler)           // Homepage with bio
-	mux.HandleFunc("/search", searchHandler)   // Search poems functionality
-	mux.HandleFunc("/poem/", poemHandler)      // Individual poem pages
-	mux.HandleFunc("/poetry", poetryHandler)   // All poems listing page
+	// Handle all requests with custom handler
+	mux.HandleFunc("/", rootHandler)
+}
+
+// Root handler that routes requests to appropriate handlers
+func rootHandler(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Path
 	
-	// Static files are served automatically by Vercel from public/ directory
-	mux.HandleFunc("/debug", debugHandler) // Debug endpoint to check file access
+	// Handle specific routes
+	switch {
+	case path == "/search":
+		searchHandler(w, r)
+	case strings.HasPrefix(path, "/poem/"):
+		poemHandler(w, r)
+	case path == "/poetry":
+		poetryHandler(w, r)
+	case path == "/debug":
+		debugHandler(w, r)
+	case path == "/" || path == "":
+		homeHandler(w, r)
+	default:
+		// Try to serve static file
+		staticHandler(w, r)
+	}
+}
+
+// Static file handler - serves embedded static content
+func staticHandler(w http.ResponseWriter, r *http.Request) {
+	path := strings.TrimPrefix(r.URL.Path, "/")
+	
+	// Handle specific static files
+	switch path {
+	case "archbgs-01.webp":
+		// Return a simple response for now - we'll embed the actual image later
+		w.Header().Set("Content-Type", "image/webp")
+		w.Write([]byte("webp placeholder"))
+	case "test-poem.json":
+		// Return the test poem JSON directly
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{
+  "id": 1,
+  "title": "the necessities",
+  "date": "2025-09-21",
+  "category": "Poetry",
+  "location": "Brooklyn, NY",
+  "content": "1000 years ago we had everything we need.\nclouds, and the bible,\nand wheels and carts,\nhorses, the concept of money,\nand we even had dying at 25.\n\ni'm 27 and i haven't died yet, never done drugs in my life.\nlast sunday i ended up on a date, somehow,\ndrinking non-alcoholic canned negronis\nwith a 37 year old recovered addict, active dealer,\nand she hadn't died yet either.\n\nwe shared a single cigarette on our way out the door,\nsat on the steps of a church at 1:30am,\neating 24hr diner donuts.\nshe talked about herself a lot and i listened a little,\nstudying hand and pretty, tired face tattoos.\n\ni called for an uber alone and she blew me a kiss,\nand four wheels arrived and took me home,\nand both of us were bone dry sober, and alive,\nand parents get lenient with their youngest child,\nthank god, God's saved us from dying at 25.\n"
+}`))
+	default:
+		if strings.HasPrefix(path, "poems/poem-") && strings.HasSuffix(path, ".json") {
+			// Extract poem ID and return embedded poem
+			poemID := strings.TrimPrefix(strings.TrimSuffix(path, ".json"), "poems/poem-")
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(getEmbeddedPoem(poemID)))
+		} else {
+			http.NotFound(w, r)
+		}
+	}
+}
+
+// Get embedded poem by ID
+func getEmbeddedPoem(poemID string) string {
+	// For now, return a simple poem for testing
+	// Later we can embed all poems directly in the code
+	return fmt.Sprintf(`{
+  "id": %s,
+  "title": "test poem %s",
+  "date": "2025-09-21",
+  "category": "Poetry",
+  "location": "Brooklyn, NY",
+  "content": "This is a test poem with ID %s.\nIt contains multiple lines\nfor testing purposes."
+}`, poemID, poemID, poemID)
 }
 
 // Handler function for Vercel
