@@ -41,7 +41,7 @@ func init() {
 	mux.HandleFunc("/poetry", poetryHandler)   // All poems listing page
 	
 	// Static file server for images, CSS, etc.
-	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static/"))))
+	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("public/"))))
 }
 
 // Handler function for Vercel
@@ -235,7 +235,7 @@ func searchPoems(query string) []struct {
 	}
 	
 	// Read all poem JSON files
-	files, err := filepath.Glob("static/poems/*.json")
+	files, err := filepath.Glob("public/poems/*.json")
 	if err != nil {
 		log.Printf("Error reading poem files: %v", err)
 		return results
@@ -351,7 +351,7 @@ func poemHandler(w http.ResponseWriter, r *http.Request) {
 	poemID := strings.TrimSuffix(path, ".json")
 	
 	// Read the JSON file
-	filePath := fmt.Sprintf("static/poems/poem-%s.json", poemID)
+	filePath := fmt.Sprintf("public/poems/poem-%s.json", poemID)
 	data, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		http.NotFound(w, r)
@@ -407,7 +407,7 @@ func poemHandler(w http.ResponseWriter, r *http.Request) {
 // Poetry handler - displays listing of all poems
 func poetryHandler(w http.ResponseWriter, r *http.Request) {
 	// Read all poem JSON files
-	files, err := filepath.Glob("static/poems/*.json")
+	files, err := filepath.Glob("public/poems/*.json")
 	if err != nil {
 		log.Printf("Error reading poem files: %v", err)
 		http.Error(w, "Error reading poems", http.StatusInternalServerError)
