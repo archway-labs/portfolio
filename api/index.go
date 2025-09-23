@@ -40,9 +40,7 @@ func init() {
 	mux.HandleFunc("/poem/", poemHandler)      // Individual poem pages
 	mux.HandleFunc("/poetry", poetryHandler)   // All poems listing page
 	
-	// Static file server for images, CSS, etc.
-	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("public/"))))
-	mux.Handle("/poems/", http.StripPrefix("/poems/", http.FileServer(http.Dir("public/poems/"))))
+	// Static files are served automatically by Vercel from public/ directory
 }
 
 // Handler function for Vercel
@@ -104,7 +102,7 @@ const baseTemplate = `
         body {
             font-family: Helvetica, Arial, sans-serif;
             font-size: 11px;
-            background-image: url('/static/archbgs-01.webp');
+            background-image: url('/archbgs-01.webp');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
