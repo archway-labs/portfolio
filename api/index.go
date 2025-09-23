@@ -41,6 +41,7 @@ func init() {
 	mux.HandleFunc("/poetry", poetryHandler)   // All poems listing page
 	
 	// Static files are served automatically by Vercel from public/ directory
+	mux.HandleFunc("/debug", debugHandler) // Debug endpoint to check file access
 }
 
 // Handler function for Vercel
