@@ -466,8 +466,8 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	// Initialize random seed
 	rand.Seed(time.Now().UnixNano())
 	
-	// Handle static files first
-	if strings.HasPrefix(r.URL.Path, "/static/") {
+	// Handle static files first (excluding background image which is served by CDN)
+	if strings.HasPrefix(r.URL.Path, "/static/") && !strings.HasSuffix(r.URL.Path, "/archbgs-01.webp") {
 		filePath := strings.TrimPrefix(r.URL.Path, "/static/")
 		log.Printf("Requesting static file: %s", "public/"+filePath)
 		data, err := staticFiles.ReadFile("public/" + filePath)
@@ -478,9 +478,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		}
 		
 		// Set appropriate content type
-		if strings.HasSuffix(filePath, ".webp") {
-			w.Header().Set("Content-Type", "image/webp")
-		} else if strings.HasSuffix(filePath, ".json") {
+		if strings.HasSuffix(filePath, ".json") {
 			w.Header().Set("Content-Type", "application/json")
 		}
 		
