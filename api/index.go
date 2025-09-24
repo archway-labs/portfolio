@@ -5,11 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
-	"path/filepath"
 	"strings"
 	"time"
 )
@@ -502,3 +500,4 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 	}
 }
+
