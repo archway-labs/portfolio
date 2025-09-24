@@ -7,7 +7,7 @@
   },
   "routes": [
     {
-      "src": "/static/archbgs-01.webp",
+      "src": "/archbgs-01.webp",
       "dest": "/archbgs-01.webp"
     },
     {
