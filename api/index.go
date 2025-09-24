@@ -488,7 +488,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	
 	// Route handling
 	switch {
-	case r.URL.Path == "/":
+	case r.URL.Path == "/" || r.URL.Path == "":
 		homeHandler(w, r)
 	case r.URL.Path == "/search":
 		searchHandler(w, r)
