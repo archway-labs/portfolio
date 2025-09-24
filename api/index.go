@@ -73,7 +73,7 @@ const baseTemplate = `
         body {
             font-family: Helvetica, Arial, sans-serif;
             font-size: 11px;
-            background-image: url('https://project-e1cl2.vercel.app/archbgs-01.webp');
+            background-image: url('/static/archbgs-01.webp');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -466,19 +466,20 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	// Initialize random seed
 	rand.Seed(time.Now().UnixNano())
 	
-	// Handle static files first (excluding background image which is served by CDN)
-	if strings.HasPrefix(r.URL.Path, "/static/") && !strings.HasSuffix(r.URL.Path, "/archbgs-01.webp") {
+	// Handle static files first
+	if strings.HasPrefix(r.URL.Path, "/static/") {
 		filePath := strings.TrimPrefix(r.URL.Path, "/static/")
-		log.Printf("Requesting static file: %s", "public/"+filePath)
 		data, err := staticFiles.ReadFile("public/" + filePath)
 		if err != nil {
-			log.Printf("Error reading static file: %v", err)
 			http.NotFound(w, r)
 			return
 		}
 		
-		// Set appropriate content type
-		if strings.HasSuffix(filePath, ".json") {
+		// Set appropriate content type and caching headers
+		if strings.HasSuffix(filePath, ".webp") {
+			w.Header().Set("Content-Type", "image/webp")
+			w.Header().Set("Cache-Control", "public, max-age=31536000")
+		} else if strings.HasSuffix(filePath, ".json") {
 			w.Header().Set("Content-Type", "application/json")
 		}
 		

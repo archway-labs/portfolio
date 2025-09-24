@@ -7,14 +7,6 @@
   },
   "routes": [
     {
-      "src": "/archbgs-01.webp",
-      "dest": "/archbgs-01.webp"
-    },
-    {
-      "src": "/$",
-      "dest": "/api/index.go"
-    },
-    {
       "src": "/(.*)",
       "dest": "/api/index.go"
     }
