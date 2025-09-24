@@ -469,8 +469,10 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	// Handle static files first
 	if strings.HasPrefix(r.URL.Path, "/static/") {
 		filePath := strings.TrimPrefix(r.URL.Path, "/static/")
+		log.Printf("Requesting static file: %s", "public/"+filePath)
 		data, err := staticFiles.ReadFile("public/" + filePath)
 		if err != nil {
+			log.Printf("Error reading static file: %v", err)
 			http.NotFound(w, r)
 			return
 		}
