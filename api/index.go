@@ -71,7 +71,7 @@ const baseTemplate = `
         body {
             font-family: Helvetica, Arial, sans-serif;
             font-size: 11px;
-            background-image: url('/archbgs-01.webp');
+            background-image: url('/static/archbgs-01.webp');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -457,6 +457,12 @@ func poetryHandler(w http.ResponseWriter, r *http.Request) {
 func Handler(w http.ResponseWriter, r *http.Request) {
 	// Initialize random seed
 	rand.Seed(time.Now().UnixNano())
+	
+	// Handle static files first
+	if strings.HasPrefix(r.URL.Path, "/static/") {
+		http.StripPrefix("/static/", http.FileServer(http.Dir("public/"))).ServeHTTP(w, r)
+		return
+	}
 	
 	// Route handling
 	switch {
