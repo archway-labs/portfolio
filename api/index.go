@@ -73,7 +73,7 @@ const baseTemplate = `
         body {
             font-family: Helvetica, Arial, sans-serif;
             font-size: 11px;
-            background-image: url('/archbgs-01.webp');
+            background-image: url('https://project-e1cl2.vercel.app/archbgs-01.webp');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
