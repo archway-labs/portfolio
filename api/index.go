@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"embed"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -12,6 +13,9 @@ import (
 	"strings"
 	"time"
 )
+
+//go:embed ../public/*
+var staticFiles embed.FS
 
 // ============================================================================
 // DATA STRUCTURES
@@ -165,8 +169,8 @@ func searchPoems(query string) []struct {
 		Content  string `json:"content"`
 	}
 	
-	// Read all poem JSON files
-	files, err := filepath.Glob("public/poems/*.json")
+	// Read all poem JSON files from embedded filesystem
+	entries, err := staticFiles.ReadDir("public/poems")
 	if err != nil {
 		log.Printf("Error reading poem files: %v", err)
 		return results
@@ -174,8 +178,11 @@ func searchPoems(query string) []struct {
 	
 	queryLower := strings.ToLower(query)
 	
-	for _, file := range files {
-		data, err := ioutil.ReadFile(file)
+	for _, entry := range entries {
+		if !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+		data, err := staticFiles.ReadFile("public/poems/" + entry.Name())
 		if err != nil {
 			continue
 		}
@@ -315,9 +322,9 @@ func poemHandler(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/poem/")
 	poemID := strings.TrimSuffix(path, ".json")
 	
-	// Read the JSON file
+	// Read the JSON file from embedded filesystem
 	filePath := fmt.Sprintf("public/poems/poem-%s.json", poemID)
-	data, err := ioutil.ReadFile(filePath)
+	data, err := staticFiles.ReadFile(filePath)
 	if err != nil {
 		http.NotFound(w, r)
 		return
@@ -371,8 +378,8 @@ func poemHandler(w http.ResponseWriter, r *http.Request) {
 
 // Poetry handler - displays listing of all poems
 func poetryHandler(w http.ResponseWriter, r *http.Request) {
-	// Read all poem JSON files
-	files, err := filepath.Glob("public/poems/*.json")
+	// Read all poem JSON files from embedded filesystem
+	entries, err := staticFiles.ReadDir("public/poems")
 	if err != nil {
 		log.Printf("Error reading poem files: %v", err)
 		http.Error(w, "Error reading poems", http.StatusInternalServerError)
@@ -388,8 +395,11 @@ func poetryHandler(w http.ResponseWriter, r *http.Request) {
 		Content  string `json:"content"`
 	}
 	
-	for _, file := range files {
-		data, err := ioutil.ReadFile(file)
+	for _, entry := range entries {
+		if !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+		data, err := staticFiles.ReadFile("public/poems/" + entry.Name())
 		if err != nil {
 			continue
 		}
@@ -460,7 +470,21 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	
 	// Handle static files first
 	if strings.HasPrefix(r.URL.Path, "/static/") {
-		http.StripPrefix("/static/", http.FileServer(http.Dir("public/"))).ServeHTTP(w, r)
+		filePath := strings.TrimPrefix(r.URL.Path, "/static/")
+		data, err := staticFiles.ReadFile("public/" + filePath)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		
+		// Set appropriate content type
+		if strings.HasSuffix(filePath, ".webp") {
+			w.Header().Set("Content-Type", "image/webp")
+		} else if strings.HasSuffix(filePath, ".json") {
+			w.Header().Set("Content-Type", "application/json")
+		}
+		
+		w.Write(data)
 		return
 	}
 	

@@ -1,22 +1,19 @@
 package main
 
-// ============================================================================
-// IMPORTS
-// ============================================================================
 import (
+	"embed"
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
-	"os"
-	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 )
+
+//go:embed public/*
+var staticFiles embed.FS
 
 // ============================================================================
 // DATA STRUCTURES
@@ -29,34 +26,6 @@ type Product struct {
 	Category    string  `json:"category"`
 	Description string  `json:"description"`
 }
-
-// ============================================================================
-// MAIN SERVER SETUP
-// ============================================================================
-func main() {
-	rand.Seed(time.Now().UnixNano())
-	
-	// Route handlers
-	http.HandleFunc("/", homeHandler)           // Homepage with bio
-	http.HandleFunc("/search", searchHandler)   // Search poems functionality
-	http.HandleFunc("/product/", productHandler) // Individual product pages (legacy)
-	http.HandleFunc("/poem/", poemHandler)      // Individual poem pages
-	http.HandleFunc("/poetry", poetryHandler)   // All poems listing page
-	
-	// Static file server for images, CSS, etc.
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static/"))))
-	
-	// Get port from environment variable (Vercel sets this)
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
-	
-	log.Printf("Server starting on :%s", port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
-}
-
-
 
 // ============================================================================
 // HTML TEMPLATES
@@ -177,6 +146,70 @@ const baseTemplate = `
 </html>`
 
 // ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+// searchPoems - searches through all poem JSON files for matching content
+func searchPoems(query string) []struct {
+	ID       int    `json:"id"`
+	Title    string `json:"title"`
+	Date     string `json:"date"`
+	Category string `json:"category"`
+	Location string `json:"location"`
+	Content  string `json:"content"`
+} {
+	var results []struct {
+		ID       int    `json:"id"`
+		Title    string `json:"title"`
+		Date     string `json:"date"`
+		Category string `json:"category"`
+		Location string `json:"location"`
+		Content  string `json:"content"`
+	}
+	
+	// Read all poem JSON files from embedded filesystem
+	entries, err := staticFiles.ReadDir("public/poems")
+	if err != nil {
+		log.Printf("Error reading poem files: %v", err)
+		return results
+	}
+	
+	queryLower := strings.ToLower(query)
+	
+	for _, entry := range entries {
+		if !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+		data, err := staticFiles.ReadFile("public/poems/" + entry.Name())
+		if err != nil {
+			continue
+		}
+		
+		var poem struct {
+			ID       int    `json:"id"`
+			Title    string `json:"title"`
+			Date     string `json:"date"`
+			Category string `json:"category"`
+			Location string `json:"location"`
+			Content  string `json:"content"`
+		}
+		
+		if err := json.Unmarshal(data, &poem); err != nil {
+			continue
+		}
+		
+		// Search in title, content, category, and location
+		if strings.Contains(strings.ToLower(poem.Title), queryLower) ||
+		   strings.Contains(strings.ToLower(poem.Content), queryLower) ||
+		   strings.Contains(strings.ToLower(poem.Category), queryLower) ||
+		   strings.Contains(strings.ToLower(poem.Location), queryLower) {
+			results = append(results, poem)
+		}
+	}
+	return results
+}
+
+// ============================================================================
 // HTTP HANDLERS
 // ============================================================================
 
@@ -213,68 +246,6 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 	base.Execute(w, data)
 }
 
-// ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
-
-// searchPoems - searches through all poem JSON files for matching content
-func searchPoems(query string) []struct {
-	ID       int    `json:"id"`
-	Title    string `json:"title"`
-	Date     string `json:"date"`
-	Category string `json:"category"`
-	Location string `json:"location"`
-	Content  string `json:"content"`
-} {
-	var results []struct {
-		ID       int    `json:"id"`
-		Title    string `json:"title"`
-		Date     string `json:"date"`
-		Category string `json:"category"`
-		Location string `json:"location"`
-		Content  string `json:"content"`
-	}
-	
-	// Read all poem JSON files
-	files, err := filepath.Glob("static/poems/*.json")
-	if err != nil {
-		log.Printf("Error reading poem files: %v", err)
-		return results
-	}
-	
-	queryLower := strings.ToLower(query)
-	
-	for _, file := range files {
-		data, err := ioutil.ReadFile(file)
-		if err != nil {
-			continue
-		}
-		
-		var poem struct {
-			ID       int    `json:"id"`
-			Title    string `json:"title"`
-			Date     string `json:"date"`
-			Category string `json:"category"`
-			Location string `json:"location"`
-			Content  string `json:"content"`
-		}
-		
-		if err := json.Unmarshal(data, &poem); err != nil {
-			continue
-		}
-		
-		// Search in title, content, category, and location
-		if strings.Contains(strings.ToLower(poem.Title), queryLower) ||
-		   strings.Contains(strings.ToLower(poem.Content), queryLower) ||
-		   strings.Contains(strings.ToLower(poem.Category), queryLower) ||
-		   strings.Contains(strings.ToLower(poem.Location), queryLower) {
-			results = append(results, poem)
-		}
-	}
-	return results
-}
-
-
 // Search handler - searches through poem JSON files and displays results
 func searchHandler(w http.ResponseWriter, r *http.Request) {
 	query := strings.ToLower(r.URL.Query().Get("q"))
@@ -292,7 +263,6 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 		poemResults = searchPoems(query)
 	}
 	
-
 	sidebar, _ := template.New("sidebar").Parse(sidebarTemplate)
 	base, _ := template.New("base").Parse(baseTemplate)
 	
@@ -345,80 +315,14 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 	base.Execute(w, data)
 }
 
-// Product handler - legacy handler for individual product pages (not used in current design)
-func productHandler(w http.ResponseWriter, r *http.Request) {
-	path := strings.TrimPrefix(r.URL.Path, "/product/")
-	productID, err := strconv.Atoi(path)
-	if err != nil {
-		http.NotFound(w, r)
-		return
-	}
-
-	var product *Product
-	for _, p := range products {
-		if p.ID == productID {
-			product = &p
-			break
-		}
-	}
-
-	if product == nil {
-		http.NotFound(w, r)
-		return
-	}
-
-	sidebar, _ := template.New("sidebar").Parse(sidebarTemplate)
-	base, _ := template.New("base").Parse(baseTemplate)
-	
-	var sidebarHTML strings.Builder
-	sidebar.Execute(&sidebarHTML, struct{ Query string }{""})
-	
-	content := fmt.Sprintf(`
-        <p><a href="/">← Back to Home</a> | <a href="/search?q=%s">%s</a></p>
-        
-        <h2>%s</h2>
-        
-        <p><strong>Date Written:</strong> %s</p>
-        <p><strong>Location:</strong> %s</p>
-        
-        <div class="poem-content">
-            %s
-        </div>
-        
-        <h3>Details</h3>
-        <ul>
-            <li>Title: %s</li>
-            <li>Date Written: %s</li>
-            <li>Location: %s</li>
-            <li>Collection: Alaska Hoffman</li>
-        </ul>
-        
-        <button>Add to Favorites</button>
-        <button>Share Poem</button>`,
-		product.Category, product.Category, product.Name, product.PartNumber, 
-		product.Category, product.Description, product.Name, product.PartNumber, product.Category)
-	
-	data := struct {
-		Title   string
-		Sidebar template.HTML
-		Content template.HTML
-	}{
-		Title:   fmt.Sprintf("%s - Alaska Hoffman", product.Name),
-		Sidebar: template.HTML(sidebarHTML.String()),
-		Content: template.HTML(content),
-	}
-	
-	base.Execute(w, data)
-}
-
 // Poem handler - displays individual poem pages from JSON files
 func poemHandler(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/poem/")
 	poemID := strings.TrimSuffix(path, ".json")
 	
-	// Read the JSON file
-	filePath := fmt.Sprintf("static/poems/poem-%s.json", poemID)
-	data, err := ioutil.ReadFile(filePath)
+	// Read the JSON file from embedded filesystem
+	filePath := fmt.Sprintf("public/poems/poem-%s.json", poemID)
+	data, err := staticFiles.ReadFile(filePath)
 	if err != nil {
 		http.NotFound(w, r)
 		return
@@ -472,8 +376,8 @@ func poemHandler(w http.ResponseWriter, r *http.Request) {
 
 // Poetry handler - displays listing of all poems
 func poetryHandler(w http.ResponseWriter, r *http.Request) {
-	// Read all poem JSON files
-	files, err := filepath.Glob("static/poems/*.json")
+	// Read all poem JSON files from embedded filesystem
+	entries, err := staticFiles.ReadDir("public/poems")
 	if err != nil {
 		log.Printf("Error reading poem files: %v", err)
 		http.Error(w, "Error reading poems", http.StatusInternalServerError)
@@ -489,8 +393,11 @@ func poetryHandler(w http.ResponseWriter, r *http.Request) {
 		Content  string `json:"content"`
 	}
 	
-	for _, file := range files {
-		data, err := ioutil.ReadFile(file)
+	for _, entry := range entries {
+		if !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+		data, err := staticFiles.ReadFile("public/poems/" + entry.Name())
 		if err != nil {
 			continue
 		}
@@ -548,4 +455,55 @@ func poetryHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	base.Execute(w, pageData)
+}
+
+// ============================================================================
+// MAIN HANDLER FUNCTION
+// ============================================================================
+
+// Handler is the main entry point for Vercel Go functions
+func Handler(w http.ResponseWriter, r *http.Request) {
+	// Initialize random seed
+	rand.Seed(time.Now().UnixNano())
+	
+	// Handle static files first
+	if strings.HasPrefix(r.URL.Path, "/static/") {
+		filePath := strings.TrimPrefix(r.URL.Path, "/static/")
+		data, err := staticFiles.ReadFile("public/" + filePath)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		
+		// Set appropriate content type
+		if strings.HasSuffix(filePath, ".webp") {
+			w.Header().Set("Content-Type", "image/webp")
+		} else if strings.HasSuffix(filePath, ".json") {
+			w.Header().Set("Content-Type", "application/json")
+		}
+		
+		w.Write(data)
+		return
+	}
+	
+	// Route handling
+	switch {
+	case r.URL.Path == "/":
+		homeHandler(w, r)
+	case r.URL.Path == "/search":
+		searchHandler(w, r)
+	case strings.HasPrefix(r.URL.Path, "/poem/"):
+		poemHandler(w, r)
+	case r.URL.Path == "/poetry":
+		poetryHandler(w, r)
+	default:
+		http.NotFound(w, r)
+	}
+}
+
+// main function for local development
+func main() {
+	http.HandleFunc("/", Handler)
+	log.Println("Server starting on :8080")
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
