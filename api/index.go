@@ -1,4 +1,4 @@
-package handler
+package main
 
 import (
 	"embed"
@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-//go:embed ../public/*
+//go:embed public/*
 var staticFiles embed.FS
 
 // ============================================================================
