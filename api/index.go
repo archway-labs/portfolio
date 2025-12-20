@@ -1,4 +1,4 @@
-package handler
+package api
 
 import (
 	"embed"
@@ -42,13 +42,8 @@ const sidebarTemplate = `
     
     <nav>
         <div><a href="/poetry">Poetry</a></div>
-        <s><div><a href="/search?q=">Calligraphy</a></div></s>
-        <s><div><a href="/search?q=">Paintings</a></div></s>
-        <s><div><a href="/search?q=">Photography</a></div></s>
-        <s><div><a href="/search?q=">Media Art</a></div></s>
-        <br>
+        <div><a href="/boma">Boma (2025)</a></div>
         <s><div><a href="/search?q=">Capsule 21 (2022)</a></div></s>
-        <s><div><a href="/search?q=">C21 Babylon (2022)</a></div></s>
         <s><div><a href="/search?q=">Superchief Gallery (2023)</a></div></s>
         <s><div><a href="/search?q=">COEX, Korea (2023)</a></div></s>
         <s><div><a href="/search?q=">DX Singularity (2024)</a></div></s>
@@ -60,6 +55,7 @@ const sidebarTemplate = `
         <br>
         <br>
         <div><a href="https://x.com/145k4">@145k4</a></div>
+		<div>hello@alaskahoffman.com</div>
     </nav>
 </div>`
 
@@ -73,23 +69,9 @@ const baseTemplate = `
         body {
             font-family: Helvetica, Arial, sans-serif;
             font-size: 11px;
-            background-image: url('/static/archbgs-01.webp');
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            background-attachment: fixed;
+            background-color: white;
             margin: 0;
             padding: 0;
-        }
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(255, 255, 255, 0.97);
-            z-index: -1;
         }
         .container {
             display: flex;
@@ -103,7 +85,7 @@ const baseTemplate = `
         }
           .main-content {
               flex: 1;
-              padding: 80px 20px 20px 60px;
+              padding: 80px 600px 20px 60px;
           }
           .poem-list {
               line-height: 1.1;
@@ -133,6 +115,14 @@ const baseTemplate = `
             color: black;
             text-decoration: underline;
         }
+        .boma-content {
+            font-size: 14px;
+            line-height: 1.6;
+            font-family: "Times New Roman", Times, serif;
+        }
+        .boma-content p {
+            text-indent: 2em;
+        }
     </style>
 </head>
 <body>
@@ -148,6 +138,92 @@ const baseTemplate = `
 // ============================================================================
 // UTILITY FUNCTIONS
 // ============================================================================
+
+// formatBomaContent - formats story content with paragraph tags for proper indentation
+func formatBomaContent(content string) string {
+	// First, split on section headers to separate them from following text
+	// Replace "\n\nI.\n" with a special marker, same for II. and III.
+	content = strings.ReplaceAll(content, "\n\nI.\n", "\n\n__SECTION_I__\n")
+	content = strings.ReplaceAll(content, "\n\nII.\n", "\n\n__SECTION_II__\n")
+	content = strings.ReplaceAll(content, "\n\nIII\n", "\n\n__SECTION_III__\n")
+	content = strings.ReplaceAll(content, "\n\nIII.\n", "\n\n__SECTION_III__\n")
+	
+	// Split by double newlines to get paragraphs
+	paragraphs := strings.Split(content, "\n\n")
+	var result strings.Builder
+	
+	for i, para := range paragraphs {
+		para = strings.TrimSpace(para)
+		if para == "" {
+			continue
+		}
+		
+		// Helper function to format content with indented line breaks
+		formatWithIndentedBreaks := func(text string) string {
+			lines := strings.Split(text, "\n")
+			var formatted strings.Builder
+			for i, line := range lines {
+				if i > 0 {
+					// Add indent for lines after the first
+					formatted.WriteString("<br><span style=\"display: inline-block; text-indent: 2em;\">")
+					formatted.WriteString(strings.TrimSpace(line))
+					formatted.WriteString("</span>")
+				} else {
+					// First line - no indent needed (paragraph already has text-indent)
+					if i < len(lines)-1 {
+						formatted.WriteString(line)
+					} else {
+						formatted.WriteString(line)
+					}
+				}
+			}
+			return formatted.String()
+		}
+		
+		// Check if this paragraph starts with a section marker
+		if strings.HasPrefix(para, "__SECTION_I__") {
+			result.WriteString("<p style=\"text-indent: 0; text-align: center;\">I.</p>\n")
+			// Get the rest of the text after the marker
+			remaining := strings.TrimPrefix(para, "__SECTION_I__")
+			remaining = strings.TrimSpace(remaining)
+			if remaining != "" {
+				result.WriteString("<p>")
+				result.WriteString(formatWithIndentedBreaks(remaining))
+				result.WriteString("</p>")
+			}
+		} else if strings.HasPrefix(para, "__SECTION_II__") {
+			result.WriteString("<p style=\"text-indent: 0; text-align: center;\">II.</p>\n")
+			remaining := strings.TrimPrefix(para, "__SECTION_II__")
+			remaining = strings.TrimSpace(remaining)
+			if remaining != "" {
+				result.WriteString("<p>")
+				result.WriteString(formatWithIndentedBreaks(remaining))
+				result.WriteString("</p>")
+			}
+		} else if strings.HasPrefix(para, "__SECTION_III__") {
+			result.WriteString("<p style=\"text-indent: 0; text-align: center;\">III.</p>\n")
+			remaining := strings.TrimPrefix(para, "__SECTION_III__")
+			remaining = strings.TrimSpace(remaining)
+			if remaining != "" {
+				result.WriteString("<p>")
+				result.WriteString(formatWithIndentedBreaks(remaining))
+				result.WriteString("</p>")
+			}
+		} else {
+			// Regular paragraph - format with indented breaks
+			result.WriteString("<p>")
+			result.WriteString(formatWithIndentedBreaks(para))
+			result.WriteString("</p>")
+		}
+		
+		// Add spacing between paragraphs (except for last one)
+		if i < len(paragraphs)-1 {
+			result.WriteString("\n")
+		}
+	}
+	
+	return result.String()
+}
 
 // searchPoems - searches through all poem JSON files for matching content
 func searchPoems(query string) []struct {
@@ -374,6 +450,62 @@ func poemHandler(w http.ResponseWriter, r *http.Request) {
 	base.Execute(w, pageData)
 }
 
+// Boma handler - displays the Boma short story
+func bomaHandler(w http.ResponseWriter, r *http.Request) {
+	// Read the JSON file from embedded filesystem
+	data, err := staticFiles.ReadFile("public/boma.json")
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	
+	// Parse the JSON
+	var story struct {
+		Title    string `json:"title"`
+		Date     string `json:"date"`
+		Location string `json:"location"`
+		Content  string `json:"content"`
+	}
+	
+	if err := json.Unmarshal(data, &story); err != nil {
+		http.Error(w, "Error parsing story data", http.StatusInternalServerError)
+		return
+	}
+	
+	sidebar, _ := template.New("sidebar").Parse(sidebarTemplate)
+	base, _ := template.New("base").Parse(baseTemplate)
+	
+	var sidebarHTML strings.Builder
+	sidebar.Execute(&sidebarHTML, struct{ Query string }{""})
+	
+	// Format content with paragraph tags for proper indentation
+	formattedContent := formatBomaContent(story.Content)
+	
+	content := fmt.Sprintf(`
+        <h4>%s</h4>
+        
+        <div class="poem-content boma-content">
+            %s
+        </div>
+        <br>
+        <br>
+        <p>%s // %s</p>`,
+		story.Title, formattedContent, 
+		story.Location, story.Date)
+	
+	pageData := struct {
+		Title   string
+		Sidebar template.HTML
+		Content template.HTML
+	}{
+		Title:   fmt.Sprintf("%s - Alaska Hoffman", story.Title),
+		Sidebar: template.HTML(sidebarHTML.String()),
+		Content: template.HTML(content),
+	}
+	
+	base.Execute(w, pageData)
+}
+
 // Poetry handler - displays listing of all poems
 func poetryHandler(w http.ResponseWriter, r *http.Request) {
 	// Read all poem JSON files from embedded filesystem
@@ -497,6 +629,8 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		poemHandler(w, r)
 	case r.URL.Path == "/poetry":
 		poetryHandler(w, r)
+	case r.URL.Path == "/boma":
+		bomaHandler(w, r)
 	default:
 		http.NotFound(w, r)
 	}
