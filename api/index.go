@@ -95,15 +95,6 @@ const baseTemplate = `
           @media (max-width: 768px) {
               .main-content {
                   padding: 40px 20px 20px 20px;
-              }
-              .sidebar {
-                  width: 120px;
-                  padding: 15px;
-              }
-          }
-          @media (max-width: 480px) {
-              .main-content {
-                  padding: 20px 15px 20px 15px;
                   max-width: 100%;
               }
               .sidebar {
@@ -118,6 +109,14 @@ const baseTemplate = `
                   padding: 20px;
                   border-right: 1px solid #ccc;
                   overflow-y: auto;
+                  box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+                  font-size: 14px;
+              }
+              .sidebar p,
+              .sidebar nav div,
+              .sidebar nav a,
+              .sidebar form input {
+                  font-size: 14px;
               }
               .sidebar.mobile-open {
                   display: block;
@@ -127,9 +126,14 @@ const baseTemplate = `
                   padding: 15px;
                   border-bottom: 1px solid #ccc;
                   background-color: white;
+                  position: sticky;
+                  top: 0;
+                  z-index: 999;
+                  font-size: 14px;
               }
               .mobile-menu-toggle a {
                   font-weight: bold;
+                  font-size: 14px;
               }
               .container {
                   flex-direction: column;
