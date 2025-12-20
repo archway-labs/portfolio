@@ -54,6 +54,7 @@ const sidebarTemplate = `
         <br>
         <br>
         <br>
+        <div><a href="/">About</a></div>
         <div><a href="https://x.com/145k4">@145k4</a></div>
 		<div>hello@alaskahoffman.com</div>
     </nav>
@@ -85,7 +86,54 @@ const baseTemplate = `
         }
           .main-content {
               flex: 1;
-              padding: 80px 600px 20px 60px;
+              padding: 80px 60px 20px 60px;
+              max-width: 600px;
+          }
+          .mobile-menu-toggle {
+              display: none;
+          }
+          @media (max-width: 768px) {
+              .main-content {
+                  padding: 40px 20px 20px 20px;
+              }
+              .sidebar {
+                  width: 120px;
+                  padding: 15px;
+              }
+          }
+          @media (max-width: 480px) {
+              .main-content {
+                  padding: 20px 15px 20px 15px;
+                  max-width: 100%;
+              }
+              .sidebar {
+                  display: none;
+                  position: fixed;
+                  top: 0;
+                  left: 0;
+                  width: 200px;
+                  height: 100vh;
+                  background-color: white;
+                  z-index: 1000;
+                  padding: 20px;
+                  border-right: 1px solid #ccc;
+                  overflow-y: auto;
+              }
+              .sidebar.mobile-open {
+                  display: block;
+              }
+              .mobile-menu-toggle {
+                  display: block;
+                  padding: 15px;
+                  border-bottom: 1px solid #ccc;
+                  background-color: white;
+              }
+              .mobile-menu-toggle a {
+                  font-weight: bold;
+              }
+              .container {
+                  flex-direction: column;
+              }
           }
           .poem-list {
               line-height: 1.1;
@@ -124,8 +172,17 @@ const baseTemplate = `
             text-indent: 2em;
         }
     </style>
+    <script>
+        function toggleMobileMenu() {
+            var sidebar = document.querySelector('.sidebar');
+            sidebar.classList.toggle('mobile-open');
+        }
+    </script>
 </head>
 <body>
+    <div class="mobile-menu-toggle">
+        <a href="#" onclick="toggleMobileMenu(); return false;">Alaska Hoffman</a>
+    </div>
     <div class="container">
         {{.Sidebar}}
         <div class="main-content">
