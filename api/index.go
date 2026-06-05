@@ -43,12 +43,13 @@ const sidebarTemplate = `
     <nav>
         <div><a href="/poetry">Poetry</a></div>
         <div><a href="/boma">Boma (2025)</a></div>
+        <div><a href="/portaltext">portaltext (2026)</a></div>
         <s><div><a href="/search?q=">Capsule 21 (2022)</a></div></s>
         <s><div><a href="/search?q=">Superchief Gallery (2023)</a></div></s>
         <s><div><a href="/search?q=">COEX, Korea (2023)</a></div></s>
         <s><div><a href="/search?q=">DX Singularity (2024)</a></div></s>
         <s><div><a href="/search?q=">DX Terminal (2025)</a></div></s>
-        <s><div><a href="/search?q=">dark pressure rising (2025)</a></div></s>
+        <s><div><a href="/search?q=">DX Terminal Pro (2026)</a></div></s>
         <br>
         <br>
         <br>
@@ -568,6 +569,37 @@ func bomaHandler(w http.ResponseWriter, r *http.Request) {
 	base.Execute(w, pageData)
 }
 
+// Portaltext handler - displays the portaltext project page
+func portaltextHandler(w http.ResponseWriter, r *http.Request) {
+	sidebar, _ := template.New("sidebar").Parse(sidebarTemplate)
+	base, _ := template.New("base").Parse(baseTemplate)
+
+	var sidebarHTML strings.Builder
+	sidebar.Execute(&sidebarHTML, struct{ Query string }{""})
+
+	content := `
+        <h4>portaltext (2026)</h4>
+
+        <div class="poem-content">
+            <p>Contextualize the open web.</p>
+            <p>portaltext is a small browser extension. Get a short, context-aware summary of any link, image, or PDF on the internet, with just the hover of your mouse.</p>
+        </div>
+        <br>
+        <p><a href="https://portaltext.com">portaltext.com</a></p>`
+
+	pageData := struct {
+		Title   string
+		Sidebar template.HTML
+		Content template.HTML
+	}{
+		Title:   "portaltext - Alaska Hoffman",
+		Sidebar: template.HTML(sidebarHTML.String()),
+		Content: template.HTML(content),
+	}
+
+	base.Execute(w, pageData)
+}
+
 // Poetry handler - displays listing of all poems
 func poetryHandler(w http.ResponseWriter, r *http.Request) {
 	// Read all poem JSON files from embedded filesystem
@@ -693,6 +725,8 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		poetryHandler(w, r)
 	case r.URL.Path == "/boma":
 		bomaHandler(w, r)
+	case r.URL.Path == "/portaltext":
+		portaltextHandler(w, r)
 	default:
 		http.NotFound(w, r)
 	}
